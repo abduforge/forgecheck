@@ -4,5 +4,6 @@ __pycache__/
 venv/
 .env
 *.log
+ForgeCheck-Reports/
 forgecheck-report.md
 .DS_Store

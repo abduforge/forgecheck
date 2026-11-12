@@ -1,73 +1,77 @@
 <div align="center">
 
-# ForgeCheck
+# FORGECHECK
 
-**A small, local-first Linux system snapshot tool.**
+**A local-first Linux system console.**
 
-Read the machine. Understand the basics. Change nothing.
+`SYSTEM INVENTORY` &nbsp;·&nbsp; `TERMINAL DASHBOARD` &nbsp;·&nbsp; `PYTHON`
 
-`LINUX` &nbsp;·&nbsp; `PYTHON` &nbsp;·&nbsp; `SYSTEM INVENTORY`
+*Read the machine. Understand the basics. Change nothing.*
 
 </div>
 
 ---
 
-ForgeCheck is a lightweight command-line utility that prints a clear snapshot of a Linux machine: distribution, kernel, CPU, memory, swap, root-disk usage, uptime, and a couple of basic security-related inventory checks.
+ForgeCheck is a lightweight, keyboard-driven terminal dashboard for viewing a local Linux system snapshot. Version 1.0 introduces a full-screen console, a large original block-letter wordmark, separate information pages, and one-key report exports.
 
-It is designed as a small, understandable Python project — useful for learning how a CLI works and for keeping a simple record of a machine's state.
+It is designed to be understandable, dependency-free, and gentle on modest hardware.
 
 ## Preview
 
 ```text
-╭──────────────────────────────────────────────╮
-│  FORGECHECK  ·  LOCAL SYSTEM SNAPSHOT         │
-╰──────────────────────────────────────────────╯
-  SYSTEM
-  OS           Debian GNU/Linux 13 (trixie)
-  Kernel       6.x.x (x86_64)
-  CPU          Intel / AMD processor
-  Python       3.x.x
+█████ █████ ████  █████ █████ █████ █   █ █████ █████ █   █
+█     █   █ █   █ █     █     █     █   █ █     █     █  █
+█     █   █ █   █ █     █     █     █   █ █     █     █ █
+████  █   █ ████  █ ███ ████  █     █████ ████  █     ██
+█     █   █ █ █   █   █ █     █     █   █ █     █     █ █
+█     █   █ █  █  █   █ █     █     █   █ █     █     █  █
+█     █████ █   █ █████ █████ █████ █   █ █████ █████ █   █
 
-  RESOURCES
-  RAM          ... used / ... total
-  Available    ...
-  Swap         ... used / ... total
-  Root disk    ... used / ... total
-  Uptime       ...
+ABDUFORGE / LOCAL-FIRST LINUX SYSTEM CONSOLE
+VERSION 1.0.0  ·  READ ONLY
 
-  SECURITY POSTURE (BASIC INVENTORY)
-  Firewall     UFW status or not detected
-  SSH server   Package status
-  Privileges   Regular user
+[1] OVERVIEW   [2] RESOURCES   [3] SECURITY   [4] ABOUT
 
-  Read-only local checks. No packets sent. No settings changed.
+SYSTEM                         RESOURCES
+OS       MX Linux              RAM       66%  █████████···
+Kernel   Linux 6.x              SWAP      20%  ██··········
+CPU      Intel / AMD            ROOT      17%  ██··········
 ```
 
-*The values above are illustrative; your output will reflect your own computer.*
+*The values above are illustrative. The actual dashboard uses live values from your machine.*
 
 ## Features
 
-- Shows Linux distribution, kernel, architecture, CPU, and Python version.
-- Summarizes RAM, swap, root-disk usage, and uptime.
-- Reports whether UFW is available and what its status command reports.
-- Checks whether the Debian `openssh-server` package is installed.
-- Supports JSON output and Markdown reports.
-- Uses only the Python standard library; no pip dependencies.
+- Full-screen terminal dashboard with four pages: Overview, Resources, Security, and About.
+- Large original `FORGECHECK` block-letter banner inspired by classic system-fetch layouts.
+- Live local snapshot of distribution, kernel, CPU, Python, RAM, swap, root filesystem, uptime, load average, and battery when available.
+- Basic local inventory for UFW and the Debian `openssh-server` package.
+- Keyboard navigation and one-key JSON / Markdown report export.
+- Classic one-shot output for scripts and terminals without an interactive TTY.
+- Uses Python's standard library only. No `pip install` dependencies.
+- Optional KDE launcher opens ForgeCheck in a separate full-screen Konsole window.
 
 ## Requirements
 
-- Linux
-- Python 3.10 or newer
-- `dpkg-query` for the optional OpenSSH package check on Debian-based systems
-- `ufw` for the optional UFW status check
+- Linux and Python 3.10 or newer.
+- A terminal supporting UTF-8 for the block-letter artwork.
+- `curses` (normally included with Python on Linux distributions).
+- Optional `konsole` for the KDE application-menu launcher.
+- Optional `ufw` and `dpkg-query` for the corresponding inventory rows.
 
-## Run
-
-Clone the repository, then:
+## Run from source
 
 ```bash
 chmod +x forgecheck.py
 ./forgecheck.py
+```
+
+In an interactive terminal, ForgeCheck opens the full-screen dashboard. Press `Q` to return to the shell.
+
+One-shot output:
+
+```bash
+./forgecheck.py --classic
 ```
 
 JSON output:
@@ -76,57 +80,72 @@ JSON output:
 ./forgecheck.py --json
 ```
 
-Save a Markdown report:
+Write a Markdown report:
 
 ```bash
-./forgecheck.py --report forgecheck-report.md
+./forgecheck.py --report ~/forgecheck-report.md
 ```
 
-Disable terminal colors:
+Start the full-screen dashboard explicitly:
 
 ```bash
-./forgecheck.py --no-color
+./forgecheck.py --dashboard
 ```
 
-## Optional user-local command
+## Dashboard keys
 
-Install the script for the current user (no `sudo` required):
+| Key | Action |
+|:--|:--|
+| `1` | Overview page |
+| `2` | Resources page |
+| `3` | Security inventory page |
+| `4` | About page |
+| `←` / `→` | Previous / next page |
+| `R` | Refresh the snapshot |
+| `J` | Export JSON to `~/ForgeCheck-Reports/` |
+| `M` | Export Markdown to `~/ForgeCheck-Reports/` |
+| `H` or `?` | Keyboard help |
+| `Q` or `Esc` | Quit dashboard |
+
+## Install for the current user
+
+No administrator privileges are required. From the project directory:
 
 ```bash
-mkdir -p "$HOME/.local/bin"
-install -m 755 forgecheck.py "$HOME/.local/bin/forgecheck"
+./install.sh
 ```
 
-Make sure `~/.local/bin` is on your `PATH`. For Bash, add it if needed:
+The installer places the command in `~/.local/bin/forgecheck`, installs an icon, and creates a KDE application-menu entry named **ForgeCheck Console**. On KDE systems with Konsole installed, that launcher opens a separate full-screen terminal window.
+
+Make sure `~/.local/bin` is on your `PATH`. The installer prints a reminder if it is not.
+
+Uninstall the user-local command and launcher:
 
 ```bash
-grep -q 'HOME/.local/bin' "$HOME/.bashrc" || \
-  printf '\nexport PATH="$HOME/.local/bin:$PATH"\n' >> "$HOME/.bashrc"
-source "$HOME/.bashrc"
+./uninstall.sh
 ```
 
-Then run `forgecheck` from any directory.
+Reports in `~/ForgeCheck-Reports/` are not removed by the uninstaller.
 
 ## Safety and scope
 
-ForgeCheck is a **read-only local inventory**, not a vulnerability scanner or penetration-testing tool. It does not send network packets, enumerate remote hosts, exploit services, or modify system configuration. It does not claim that a machine is secure. Firewall status may be unknown when a different firewall manager is used or elevated permissions are required.
+ForgeCheck is a **read-only local inventory**, not a vulnerability scanner or penetration-testing framework. It does not send network probes, enumerate remote hosts, exploit services, start or stop services, change firewall rules, or modify system configuration. It does not claim that a machine is secure.
 
-Run it as a regular user. Some checks may return `unknown` rather than asking for administrator privileges.
+Run it as a regular user. Some optional checks may say that status is unavailable when elevated permission would be required. That is intentional: ForgeCheck does not request `sudo` or prompt for a password.
 
-## Project status
+## Development and tests
 
-Early development — `0.1.0`. Contributions, bug reports, and suggestions are welcome.
+```bash
+python3 -m unittest discover -s tests -v
+python3 -m py_compile forgecheck.py
+```
 
-## License
+The application has no third-party Python runtime dependencies.
 
-MIT. See [LICENSE](LICENSE).
+## Project
 
----
-
-<div align="center">
-
-**Built by Abduali · AbduForge**
+- Version: `1.0.0`
+- License: MIT
+- Author: Abduali / AbduForge
 
 *Every system tells a story. Learn to read it.*
-
-</div>
