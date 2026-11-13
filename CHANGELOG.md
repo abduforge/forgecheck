@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.1.0 — SUPER — 2026-11-13
+
+- Expanded the dashboard from four to six pages: Overview, Resources, Network, Security, System, and About.
+- Added local network interface and listening-socket inventory using `ip` and `ss` when available.
+- Added CPU usage sampling, CPU frequency, and hardware temperature readings when exposed by the kernel.
+- Added Secure Boot state detection when the UEFI variable is readable.
+- Added swappiness, separate root/home filesystem details, and fuller RAM/swap percentages.
+- Expanded JSON and Markdown reports with network, hardware, and security inventory; documented that reports may contain private LAN addresses.
+- Improved terminal resizing, small-screen handling, keyboard help, and KDE launcher naming.
+- Expanded automated tests and clarified the read-only local scope.
+- Kept the application dependency-free and compatible with modest Linux systems.
+
 ## 1.0.0 — 2026-11-12
 
 - Rebuilt the one-shot snapshot tool as a full-screen, keyboard-driven terminal dashboard.
