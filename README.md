@@ -2,64 +2,87 @@
 
 # FORGECHECK
 
-**SUPER · A local-first Linux system console**
+**CT · Custom Terminal Edition**
 
-`SYSTEM INVENTORY` &nbsp;·&nbsp; `TERMINAL DASHBOARD` &nbsp;·&nbsp; `PYTHON`
+`CUSTOMIZABLE TUI` · `LINUX SYSTEM INVENTORY` · `PYTHON`
 
-*Read the machine. Understand the basics. Change nothing.*
+*Make the console yours. Keep the system untouched.*
 
-**Version 1.1.0**
+**Version 1.2.0**
 
 </div>
 
 ---
 
-ForgeCheck is a lightweight, keyboard-driven terminal dashboard for viewing a local Linux system snapshot. The SUPER release expands the dashboard with local network inventory, listening-socket visibility, CPU sampling, hardware telemetry, Secure Boot state, and more complete reports.
+ForgeCheck is a lightweight, keyboard-driven Linux terminal dashboard for viewing a local system snapshot. **CT (Custom Terminal)** adds saved interface preferences: dark, light or monochrome themes; six accent colors; compact or comfortable layout; a large wordmark toggle; and a personal brand label.
 
-It is designed to be understandable, dependency-free, read-only, and gentle on modest hardware.
+The project is designed to stay dependency-free, understandable, and usable on modest Linux hardware.
 
-## Preview
+![ForgeCheck CT customization screen](assets/ct-preview.svg)
 
-```text
-█████ █████ ████  █████ █████ █████ █   █ █████ █████ █   █
-█     █   █ █   █ █     █     █     █   █ █     █     █  █
-█     █   █ █   █ █     █     █     █   █ █     █     █ █
-████  █   █ ████  █ ███ ████  █     █████ ████  █     ██
-█     █   █ █ █   █   █ █     █     █   █ █     █     █ █
-█     █   █ █  █  █   █ █     █     █   █ █     █     █  █
-█     █████ █   █ █████ █████ █████ █   █ █████ █████ █   █
+*Illustrative preview of the Customize page. Live system values are collected on the user's own machine.*
 
-ABDUFORGE / LOCAL-FIRST LINUX SYSTEM CONSOLE
-VERSION 1.1.0 · SUPER EDITION · READ ONLY
+## CT customization
 
-[1] OVERVIEW [2] RESOURCES [3] NETWORK
-[4] SECURITY [5] SYSTEM [6] ABOUT
+Open the dashboard and press `6` or `C` to open **CUSTOMIZE**. Preferences are saved automatically to `~/.config/forgecheck/config.json` (or `$XDG_CONFIG_HOME/forgecheck/config.json`) with owner-only file permissions. The file is local and is not included in exported reports.
+
+| Key | Setting | Options |
+|:--|:--|:--|
+| `T` | Theme | `dark`, `light`, `mono` |
+| `A` | Accent | `teal`, `blue`, `green`, `amber`, `purple`, `red` |
+| `D` | Density | `comfortable`, `compact` |
+| `L` | Large wordmark | on / off |
+| `B` | Brand label | custom safe ASCII label, up to 28 characters |
+| `X` | Reset | restore saved defaults |
+| `S` | Save | save preferences immediately |
+
+The selected theme and accent are rendered with terminal colors when the terminal supports them. Monochrome mode respects the terminal's default colors. Compact density uses a shorter header to leave more room for the dashboard.
+
+### Manual configuration
+
+Example `~/.config/forgecheck/config.json`:
+
+```json
+{
+  "theme": "dark",
+  "accent": "teal",
+  "density": "comfortable",
+  "show_logo": true,
+  "brand": "ABDUFORGE"
+}
 ```
 
-*The screenshot-style text above is illustrative. Actual values are collected locally from the machine running ForgeCheck.*
+Reset preferences from the shell:
 
-## What's new in 1.1.0 SUPER
+```bash
+forgecheck --reset-customization
+```
 
-- Six-page full-screen terminal dashboard: Overview, Resources, Network, Security, System, About.
-- CPU usage sampling and current frequency when the kernel exposes it.
-- Hardware temperature reading from supported `hwmon` / thermal sysfs sensors.
-- Local network interface addresses and listening-socket inventory using `ip` and `ss` when available.
-- Secure Boot state when the UEFI variable is readable.
-- RAM, swap, swappiness, root and home filesystem details.
-- Timestamped JSON and Markdown report exports.
-- Responsive terminal layout, keyboard navigation and resize handling.
-- Updated KDE launcher, installer, uninstaller, tests and documentation.
+Print the configuration path:
+
+```bash
+forgecheck --config-path
+```
+
+## Dashboard pages
+
+1. **Overview** — system identity and compact resource summary.
+2. **Resources** — RAM, swap, root disk, CPU sample and battery.
+3. **Network** — local interface addresses and listening sockets.
+4. **Security** — local UFW, OpenSSH package and Secure Boot inventory.
+5. **System** — CPU frequency, temperature, runtime and load.
+6. **Customize** — themes, accents, density, wordmark and brand label.
+7. **About** — project scope and design principles.
 
 ## Features
 
-- Large original `FORGECHECK` block-letter wordmark.
-- Live local snapshot of distribution, kernel, architecture, CPU, Python, RAM, swap, filesystems, uptime, load average, battery, CPU temperature and frequency when available.
-- Basic local inventory for UFW, the Debian `openssh-server` package and Secure Boot state when readable.
+- Original large block-letter `FORGECHECK` wordmark.
+- Persistent personal UI preferences stored locally.
+- Local snapshot of distribution, kernel, architecture, CPU, Python, RAM, swap, filesystems, uptime, load average, battery, temperature and frequency when available.
 - Local-only network inventory. It lists this machine's interface addresses and listening sockets; it does not probe remote machines.
-- Classic one-shot output for scripts and non-interactive terminals.
-- JSON output and Markdown report export.
-- Optional KDE launcher opens a dedicated full-screen Konsole window.
-- Python standard library only. No `pip install` runtime dependencies.
+- Basic local inventory for UFW, the Debian `openssh-server` package and Secure Boot state when readable.
+- Timestamped JSON and Markdown report exports.
+- Python standard library only; no third-party runtime dependencies.
 
 ## Requirements
 
@@ -76,8 +99,6 @@ VERSION 1.1.0 · SUPER EDITION · READ ONLY
 chmod +x forgecheck.py
 ./forgecheck.py
 ```
-
-In an interactive terminal, ForgeCheck opens the full-screen dashboard. Press `Q` or `Esc` to return to the shell.
 
 Classic one-shot output:
 
@@ -97,7 +118,7 @@ Write a Markdown report:
 ./forgecheck.py --report ~/forgecheck-report.md
 ```
 
-Start the dashboard explicitly:
+Open the interactive dashboard explicitly:
 
 ```bash
 ./forgecheck.py --dashboard
@@ -107,13 +128,17 @@ Start the dashboard explicitly:
 
 | Key | Action |
 |:--|:--|
-| `1`–`6` | Open Overview, Resources, Network, Security, System or About |
+| `1`–`7` | Open Overview, Resources, Network, Security, System, Customize or About |
 | `←` / `→` | Previous / next page |
-| `R` | Refresh the snapshot |
-| `J` | Export JSON to `~/ForgeCheck-Reports/` |
-| `M` | Export Markdown to `~/ForgeCheck-Reports/` |
+| `C` | Jump to Customize |
+| `T/A/D/L/B` | Change theme, accent, density, logo or brand on Customize page |
+| `X` | Restore default UI preferences |
+| `S` | Save UI preferences |
+| `R` | Refresh local snapshot |
+| `J` | Export JSON |
+| `M` | Export Markdown |
 | `H` or `?` | Keyboard help |
-| `Q` or `Esc` | Quit dashboard |
+| `Q` or `Esc` | Quit |
 
 ## Install for the current user
 
@@ -123,9 +148,7 @@ No administrator privileges are required. From the project directory:
 ./install.sh
 ```
 
-The installer places the command in `~/.local/bin/forgecheck`, installs the icon, and creates a KDE application-menu entry named **ForgeCheck SUPER Console**. On KDE systems with Konsole installed, that launcher opens a separate full-screen terminal window.
-
-Make sure `~/.local/bin` is on your `PATH` if the command is not found.
+The installer places the command in `~/.local/bin/forgecheck`, installs the icon, and creates a KDE application-menu entry named **ForgeCheck CT Console**. On KDE systems with Konsole installed, that launcher opens a separate full-screen terminal window.
 
 Uninstall the user-local command and launcher:
 
@@ -133,29 +156,29 @@ Uninstall the user-local command and launcher:
 ./uninstall.sh
 ```
 
-Reports in `~/ForgeCheck-Reports/` are not removed by the uninstaller.
+Your customization file and exported reports are kept when uninstalling.
 
-## Safety and scope
+## Safety, scope and privacy
 
-ForgeCheck is a **read-only local inventory**, not a vulnerability scanner or penetration-testing framework. Network information is limited to local interface addresses and local listening sockets. It does not send network probes, enumerate remote hosts, exploit services, start or stop services, change firewall rules, or modify system configuration. It does not claim that a machine is secure.
+ForgeCheck is a **read-only local inventory**, not a vulnerability scanner or penetration-testing framework. Network information is limited to local interface addresses and local listening sockets. It does not probe remote machines, send network scans, exploit services, start or stop services, change firewall rules, or modify system configuration. It does not claim that a machine is secure.
 
 Run it as a regular user. Some optional checks may say that status is unavailable when elevated permission would be required. That is intentional: ForgeCheck does not request `sudo` or prompt for a password.
 
-**Privacy note:** JSON and Markdown reports can contain local LAN IP addresses and listening-port details. Review exported reports before posting them publicly.
+JSON and Markdown reports can contain private LAN IP addresses and listening-port details. Review reports before sharing. UI preferences are stored locally and are not uploaded by ForgeCheck.
 
 ## Development and tests
 
 ```bash
-python3 -m unittest discover -s tests -v
 python3 -m py_compile forgecheck.py
+python3 -m unittest discover -s tests -v
 ```
 
-The test suite uses only Python's standard library.
+The test suite uses only the Python standard library.
 
 ## Project
 
-- Version: `1.1.0`
-- Codename: `SUPER`
+- Version: `1.2.0`
+- Codename: `CT` (Custom Terminal)
 - License: MIT
 - Author: Abduali / AbduForge
 

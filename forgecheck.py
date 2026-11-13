@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""ForgeCheck 1.1.0 SUPER — a local-first, read-only Linux system console."""
+"""ForgeCheck 1.2.0 CT — a customizable, local-first Linux system console."""
 from __future__ import annotations
 
 import argparse
@@ -17,9 +17,78 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 APP_NAME = "ForgeCheck"
 REPORT_DIR = Path.home() / "ForgeCheck-Reports"
+CONFIG_DIR = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "forgecheck"
+CONFIG_PATH = CONFIG_DIR / "config.json"
+DEFAULT_CONFIG: dict[str, Any] = {
+    "theme": "dark",
+    "accent": "teal",
+    "density": "comfortable",
+    "show_logo": True,
+    "brand": "ABDUFORGE",
+}
+ACCENT_NAMES = ("teal", "blue", "green", "amber", "purple", "red")
+THEME_NAMES = ("dark", "light", "mono")
+DENSITY_NAMES = ("comfortable", "compact")
+
+
+def normalize_config(raw: Any) -> dict[str, Any]:
+    """Validate user preferences and ignore unknown or malformed values."""
+    config = dict(DEFAULT_CONFIG)
+    if not isinstance(raw, dict):
+        return config
+    if raw.get("theme") in THEME_NAMES:
+        config["theme"] = raw["theme"]
+    if raw.get("accent") in ACCENT_NAMES:
+        config["accent"] = raw["accent"]
+    if raw.get("density") in DENSITY_NAMES:
+        config["density"] = raw["density"]
+    if isinstance(raw.get("show_logo"), bool):
+        config["show_logo"] = raw["show_logo"]
+    brand = raw.get("brand")
+    if isinstance(brand, str):
+        # Keep branding terminal-safe: printable ASCII, no control sequences.
+        brand = re.sub(r"[^A-Za-z0-9 ._-]", "", brand).strip()[:28]
+        if brand:
+            config["brand"] = brand.upper()
+    return config
+
+
+def load_config(path: Path = CONFIG_PATH) -> dict[str, Any]:
+    try:
+        return normalize_config(json.loads(path.read_text(encoding="utf-8")))
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+        return dict(DEFAULT_CONFIG)
+
+
+def save_config(config: dict[str, Any], path: Path = CONFIG_PATH) -> None:
+    """Atomically save validated preferences with owner-only permissions."""
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    try:
+        path.parent.chmod(0o700)
+    except OSError:
+        pass
+    temporary = path.with_name(path.name + ".tmp")
+    payload = json.dumps(normalize_config(config), indent=2, ensure_ascii=True) + "\n"
+    temporary.write_text(payload, encoding="utf-8")
+    try:
+        temporary.chmod(0o600)
+    except OSError:
+        pass
+    os.replace(temporary, path)
+    try:
+        path.chmod(0o600)
+    except OSError:
+        pass
+
+
+def reset_config(path: Path = CONFIG_PATH) -> dict[str, Any]:
+    config = dict(DEFAULT_CONFIG)
+    save_config(config, path)
+    return config
+
 
 # Original 5x7 block lettering. Kept compact enough for an 80-column terminal.
 FONT: dict[str, tuple[str, ...]] = {
@@ -374,7 +443,7 @@ def render_classic(data: dict[str, Any], color: bool = True) -> str:
     lines = [paint(line, "1;36") for line in logo_lines()]
     lines += [
         paint("  ABDUFORGE / LOCAL-FIRST LINUX SYSTEM CONSOLE", "1;37"),
-        paint(f"  VERSION {VERSION}  ·  SUPER EDITION  ·  READ ONLY", "2"),
+        paint(f"  VERSION {VERSION}  ·  CT CUSTOM EDITION  ·  READ ONLY", "2"),
         paint("  " + "─" * 59, "2"),
         "",
         paint("  SYSTEM", "1;36"),
@@ -432,11 +501,22 @@ def render_markdown(data: dict[str, Any]) -> str:
     ]
     table = "\n".join(f"| {name} | {str(value).replace('|', '&#124;')} |" for name, value in rows)
     interfaces = "\n".join(f"- `{item['name']}`: {item['addresses']}" for item in n["interfaces"]) or "- No active non-loopback interface was reported."
+    ui = data.get("ui_customization")
+    customization = ""
+    if isinstance(ui, dict):
+        customization = (
+            "\n## UI customization\n\n"
+            f"- Theme: `{ui.get('theme', 'unknown')}`\n"
+            f"- Accent: `{ui.get('accent', 'unknown')}`\n"
+            f"- Density: `{ui.get('density', 'unknown')}`\n"
+            f"- Brand: `{ui.get('brand', 'unknown')}`\n"
+        )
     return (
-        f"# ForgeCheck {VERSION} SUPER report\n\n"
+        f"# ForgeCheck {VERSION} CT report\n\n"
         f"Collected: `{data['collected_at']}`\n\n"
         "| Check | Result |\n|:--|:--|\n"
-        f"{table}\n\n## Network interfaces\n\n{interfaces}\n\n"
+        f"{table}\n\n## Network interfaces\n\n{interfaces}\n"
+        f"{customization}\n"
         "> Local system inventory only. This report is not a security audit. "
         "It may include private LAN IP addresses and listening ports; review before sharing. "
         "No network scanning or system configuration changes are performed.\n"
@@ -444,14 +524,15 @@ def render_markdown(data: dict[str, Any]) -> str:
 
 
 class Dashboard:
-    """Full-screen, keyboard-driven terminal dashboard."""
-    PAGES = ("OVERVIEW", "RESOURCES", "NETWORK", "SECURITY", "SYSTEM", "ABOUT")
+    """Customizable, full-screen terminal dashboard."""
+    PAGES = ("OVERVIEW", "RESOURCES", "NETWORK", "SECURITY", "SYSTEM", "CUSTOMIZE", "ABOUT")
 
     def __init__(self, screen: Any) -> None:
         self.screen = screen
         self.page = 0
         self.data = collect_snapshot()
-        self.message = "Ready. Local read-only mode."
+        self.config = load_config()
+        self.message = "Ready. Local read-only mode. Preferences are saved locally."
         self.color = False
         self._setup()
 
@@ -462,16 +543,46 @@ class Dashboard:
             pass
         self.screen.keypad(True)
         self.screen.timeout(-1)
-        if curses.has_colors():
-            curses.start_color()
+        self._apply_colors()
+
+    def _apply_colors(self) -> None:
+        """Apply the selected theme and accent using portable curses colors."""
+        self.color = False
+        if not curses.has_colors() or self.config["theme"] == "mono":
             try:
-                curses.use_default_colors()
+                self.screen.bkgd(" ")
             except curses.error:
                 pass
-            for index, color in enumerate((curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_GREEN,
-                                           curses.COLOR_YELLOW, curses.COLOR_BLUE, curses.COLOR_MAGENTA), 1):
-                curses.init_pair(index, color, -1)
+            return
+        try:
+            curses.start_color()
+            theme = self.config["theme"]
+            foreground = curses.COLOR_BLACK if theme == "light" else curses.COLOR_WHITE
+            background = curses.COLOR_WHITE if theme == "light" else curses.COLOR_BLACK
+            accent_map = {
+                "teal": curses.COLOR_CYAN,
+                "blue": curses.COLOR_BLUE,
+                "green": curses.COLOR_GREEN,
+                "amber": curses.COLOR_YELLOW,
+                "purple": curses.COLOR_MAGENTA,
+                "red": curses.COLOR_RED,
+            }
+            accent = accent_map.get(self.config["accent"], curses.COLOR_CYAN)
+            muted = curses.COLOR_BLUE if theme == "light" else curses.COLOR_CYAN
+            pairs = (
+                (1, accent, background),
+                (2, foreground, background),
+                (3, curses.COLOR_GREEN, background),
+                (4, curses.COLOR_YELLOW, background),
+                (5, muted, background),
+                (6, background, accent),
+            )
+            for pair, fg, bg in pairs:
+                curses.init_pair(pair, fg, bg)
+            self.screen.bkgd(" ", curses.color_pair(2))
             self.color = True
+        except curses.error:
+            self.color = False
 
     def _attr(self, pair: int = 0, bold: bool = False, dim: bool = False) -> int:
         attr = curses.color_pair(pair) if self.color and pair else 0
@@ -520,22 +631,24 @@ class Dashboard:
     def draw_header(self) -> None:
         height, width = self.screen.getmaxyx()
         logo = logo_lines()
-        if width >= 72 and height >= 23:
+        full_banner = width >= 78 and height >= 25 and self.config["show_logo"] and self.config["density"] == "comfortable"
+        if full_banner:
             x = max(1, (width - len(logo[0])) // 2)
             for index, row in enumerate(logo):
                 self.put(index, x, row, self._attr(1, bold=True))
-            self.put(7, 1, "ABDUFORGE  /  LOCAL-FIRST LINUX SYSTEM CONSOLE", self._attr(2, bold=True), width - 2)
-            self.put(8, 1, f"VERSION {VERSION}  ·  SUPER EDITION  ·  READ ONLY  ·  {self.data['collected_at']}", self._attr(5, dim=True), width - 2)
+            self.put(7, 1, f"{self.config['brand']}  /  LOCAL-FIRST LINUX SYSTEM CONSOLE", self._attr(2, bold=True), width - 2)
+            self.put(8, 1, f"VERSION {VERSION}  ·  CT EDITION  ·  READ ONLY  ·  THEME {self.config['theme'].upper()}", self._attr(5, dim=True), width - 2)
             self.line(9)
-            nav = "   ".join(f"[{i + 1}] {name}" for i, name in enumerate(self.PAGES))
+            nav = "  ".join(f"[{i + 1}] {name}" for i, name in enumerate(self.PAGES))
             self.put(10, 1, nav, self._attr(1, bold=True), width - 2)
             self.line(11)
             self.content_y = 13
         else:
-            self.put(0, 1, f"FORGECHECK {VERSION} SUPER / ABDUFORGE", self._attr(1, bold=True))
-            self.put(1, 1, "Enlarge terminal to at least 80x24 for the full banner.", self._attr(4))
+            logo_state = "FORGECHECK" if self.config["show_logo"] else "CONSOLE"
+            self.put(0, 1, f"{logo_state}  /  {self.config['brand']}  /  v{VERSION} CT", self._attr(1, bold=True), width - 2)
+            self.put(1, 1, f"LOCAL-FIRST LINUX CONSOLE  ·  {self.config['theme'].upper()} / {self.config['accent'].upper()} / {self.config['density'].upper()}", self._attr(5, dim=True), width - 2)
             self.line(2)
-            self.put(3, 1, "1 Overview  2 Resources  3 Network  4 Security  5 System  6 About", self._attr(1, bold=True), width - 2)
+            self.put(3, 1, "1 Overview  2 Resources  3 Network  4 Security  5 System  6 Customize  7 About", self._attr(1, bold=True), width - 2)
             self.line(4)
             self.content_y = 6
 
@@ -601,15 +714,101 @@ class Dashboard:
         load = ", ".join(str(x) for x in self.data["load_average"]) or "Not reported"
         self.kv(y + 7, 2, "Load average", load, width - 5)
 
+    def draw_customize(self, y: int, width: int) -> None:
+        self.title(y, 2, "PERSONALIZE YOUR FORGECHECK CONSOLE")
+        rows = [
+            ("Theme", f"{self.config['theme'].upper()}  (dark / light / mono)"),
+            ("Accent", f"{self.config['accent'].upper()}  ({', '.join(ACCENT_NAMES)})"),
+            ("Density", f"{self.config['density'].upper()}  (comfortable / compact)"),
+            ("Large logo", "ON" if self.config["show_logo"] else "OFF"),
+            ("Brand label", self.config["brand"]),
+        ]
+        for offset, (label, value) in enumerate(rows, 2):
+            self.kv(y + offset, 3, label, value, width - 7)
+        controls = "T theme  A accent  D density  L logo  B brand  X reset  S save"
+        self.put(y + 8, 3, controls, self._attr(3, bold=True), width - 6)
+
+    def _save_preferences(self) -> None:
+        try:
+            save_config(self.config)
+            self.message = f"Preferences saved to {CONFIG_PATH}"
+        except OSError as exc:
+            self.message = f"Could not save preferences: {exc}"
+
+    def _edit_brand(self) -> None:
+        height, width = self.screen.getmaxyx()
+        row = max(0, height - 2)
+        prompt = "New brand label (A-Z, 0-9, spaces, . _ -; max 28): "
+        try:
+            self.screen.move(row, 1)
+            self.screen.clrtoeol()
+            self.screen.addnstr(row, 1, prompt, max(1, width - 3))
+            curses.echo()
+            try:
+                curses.curs_set(1)
+            except curses.error:
+                pass
+            raw = self.screen.getstr(row, min(width - 2, len(prompt) + 1), 28)
+            value = raw.decode("ascii", errors="ignore").strip()
+            if not value:
+                self.message = "Brand unchanged; empty labels are not allowed."
+                return
+            safe_value = re.sub(r"[^A-Za-z0-9 ._-]", "", value).strip()[:28]
+            if not safe_value:
+                self.message = "Brand unchanged; enter at least one supported character."
+                return
+            normalized = safe_value.upper()
+            if normalized != self.config["brand"]:
+                self.config["brand"] = normalized
+                self._save_preferences()
+            else:
+                self.message = "Brand unchanged; use at least one valid character."
+        except curses.error:
+            self.message = "Brand edit cancelled."
+        finally:
+            curses.noecho()
+            try:
+                curses.curs_set(0)
+            except curses.error:
+                pass
+
+    def customize(self, key: int) -> None:
+        if key in (ord("t"), ord("T")):
+            index = THEME_NAMES.index(self.config["theme"])
+            self.config["theme"] = THEME_NAMES[(index + 1) % len(THEME_NAMES)]
+            self._apply_colors()
+            self._save_preferences()
+        elif key in (ord("a"), ord("A")):
+            index = ACCENT_NAMES.index(self.config["accent"])
+            self.config["accent"] = ACCENT_NAMES[(index + 1) % len(ACCENT_NAMES)]
+            self._apply_colors()
+            self._save_preferences()
+        elif key in (ord("d"), ord("D")):
+            self.config["density"] = "compact" if self.config["density"] == "comfortable" else "comfortable"
+            self._save_preferences()
+        elif key in (ord("l"), ord("L")):
+            self.config["show_logo"] = not self.config["show_logo"]
+            self._save_preferences()
+        elif key in (ord("b"), ord("B")):
+            self._edit_brand()
+        elif key in (ord("x"), ord("X")):
+            self.config = reset_config()
+            self._apply_colors()
+            self.message = "Default customization restored and saved."
+        elif key in (ord("s"), ord("S")):
+            self._save_preferences()
+
     def draw_about(self, y: int, width: int) -> None:
-        self.title(y, 2, "ABOUT FORGECHECK SUPER")
+        self.title(y, 2, "ABOUT FORGECHECK CT")
         lines = [
-            "A local-first Linux system console by Abduali / AbduForge.",
+            "A customizable, local-first Linux system console by Abduali / AbduForge.",
+            "Personal themes, accent colors, density, logo and brand label.",
             "System, resources, hardware, network and local security inventory.",
             "Python standard library only. No third-party runtime dependencies.",
-            "DESIGN:  Local-first  /  Read-only  /  Understandable",
+            "DESIGN:  Local-first  /  Read-only  /  User-customizable",
             "SCOPE:   Not a vulnerability scanner or a security audit.",
-            "KEYS:  1-6 pages  |  R refresh  |  J JSON  |  M Markdown  |  H help  |  Q quit",
+            "KEYS:  1-7 pages  |  C customize  |  R refresh  |  J JSON  |  M Markdown  |  Q quit",
+            f"CONFIG: {CONFIG_PATH} (local user preferences; excluded from reports)",
         ]
         for offset, line in enumerate(lines, 1):
             strong = line.startswith(("DESIGN:", "SCOPE:", "KEYS:"))
@@ -618,7 +817,7 @@ class Dashboard:
     def draw_help(self) -> None:
         self.screen.erase()
         height, width = self.screen.getmaxyx()
-        self.put(1, 2, "FORGECHECK SUPER — KEYBOARD GUIDE", self._attr(1, bold=True))
+        self.put(1, 2, "FORGECHECK CT — KEYBOARD GUIDE", self._attr(1, bold=True))
         self.line(3)
         items = [
             ("1", "Overview", "System identity and compact resource summary."),
@@ -626,7 +825,11 @@ class Dashboard:
             ("3", "Network", "Local interface addresses and listening sockets."),
             ("4", "Security", "UFW, OpenSSH package and Secure Boot inventory."),
             ("5", "System", "CPU frequency, temperature, runtime and load."),
-            ("6", "About", "Project scope and design principles."),
+            ("6", "Customize", "Themes, accents, density, logo and brand label."),
+            ("7", "About", "Project scope and design principles."),
+            ("C", "Customize", "Jump to the customization page."),
+            ("T/A/D/L/B", "Style controls", "Change theme, accent, density, logo or brand."),
+            ("X / S", "Reset / save", "Restore defaults or save current preferences."),
             ("R", "Refresh", "Collect a fresh local system snapshot."),
             ("J", "Export JSON", "Save a timestamped JSON report."),
             ("M", "Export Markdown", "Save a readable Markdown report."),
@@ -651,7 +854,8 @@ class Dashboard:
             stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
             suffix = "json" if kind == "json" else "md"
             path = REPORT_DIR / f"forgecheck-{stamp}.{suffix}"
-            content = json.dumps(self.data, indent=2, ensure_ascii=False) + "\n" if kind == "json" else render_markdown(self.data)
+            export_data = {**self.data, "ui_customization": dict(self.config)}
+            content = json.dumps(export_data, indent=2, ensure_ascii=False) + "\n" if kind == "json" else render_markdown(export_data)
             path.write_text(content, encoding="utf-8")
             self.message = f"Saved {path}"
         except OSError as exc:
@@ -661,17 +865,17 @@ class Dashboard:
         self.screen.erase()
         height, width = self.screen.getmaxyx()
         if height < 20 or width < 60:
-            self.put(1, 1, f"FORGECHECK {VERSION} SUPER", self._attr(1, bold=True))
+            self.put(1, 1, f"FORGECHECK {VERSION} CT", self._attr(1, bold=True))
             self.put(3, 1, "Terminal is too small. Resize to at least 80x24 for the full view.", self._attr(4))
             self.put(5, 1, "Press Q to quit.", self._attr(2))
         else:
             self.draw_header()
             y = self.content_y
             draw_page = (self.draw_overview, self.draw_resources, self.draw_network,
-                         self.draw_security, self.draw_system, self.draw_about)
+                         self.draw_security, self.draw_system, self.draw_customize, self.draw_about)
             draw_page[self.page](y, width)
             self.line(height - 3)
-            self.put(height - 2, 1, "1-6 Pages   R Refresh   J JSON   M Markdown   H Help   Q Quit", self._attr(1, bold=True), width - 2)
+            self.put(height - 2, 1, "1-7 Pages   C Customize   R Refresh   J JSON   M Markdown   H Help   Q Quit", self._attr(1, bold=True), width - 2)
         self.put(height - 1, 1, self.message, self._attr(2, dim=True), width - 2)
         self.screen.refresh()
 
@@ -692,9 +896,14 @@ class Dashboard:
                 self.export("json")
             elif key in (ord("m"), ord("M")):
                 self.export("markdown")
-            elif ord("1") <= key <= ord("6"):
+            elif ord("1") <= key <= ord("7"):
                 self.page = key - ord("1")
                 self.message = f"Opened {self.PAGES[self.page].lower()} page."
+            elif key in (ord("c"), ord("C")):
+                self.page = 5
+                self.message = "Opened customization. Preferences are stored locally."
+            elif self.page == 5 and key in tuple(map(ord, "tTaAdDlLbBxXsS")):
+                self.customize(key)
             elif key in (curses.KEY_LEFT, curses.KEY_RIGHT):
                 self.page = (self.page + (1 if key == curses.KEY_RIGHT else -1)) % len(self.PAGES)
                 self.message = f"Opened {self.PAGES[self.page].lower()} page."
@@ -703,19 +912,28 @@ class Dashboard:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="forgecheck",
-        description="ForgeCheck 1.1.0 SUPER — a local, read-only Linux system console.",
+        description="ForgeCheck 1.2.0 CT — a customizable, local, read-only Linux system console.",
     )
-    parser.add_argument("--version", action="version", version=f"ForgeCheck {VERSION} SUPER")
+    parser.add_argument("--version", action="version", version=f"ForgeCheck {VERSION} CT")
     parser.add_argument("--classic", action="store_true", help="print a one-shot terminal snapshot")
     parser.add_argument("--dashboard", action="store_true", help="open the full-screen terminal dashboard")
     parser.add_argument("--json", action="store_true", help="print a JSON snapshot")
     parser.add_argument("--report", metavar="FILE", help="write a Markdown report to FILE")
     parser.add_argument("--no-color", action="store_true", help="disable ANSI colors in classic mode")
+    parser.add_argument("--config-path", action="store_true", help="print the local customization file path")
+    parser.add_argument("--reset-customization", action="store_true", help="restore default UI preferences")
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.config_path:
+        print(CONFIG_PATH)
+        return 0
+    if args.reset_customization:
+        reset_config()
+        print(f"ForgeCheck preferences reset: {CONFIG_PATH}")
+        return 0
     if args.dashboard and not (sys.stdin.isatty() and sys.stdout.isatty()):
         print("forgecheck: --dashboard needs an interactive terminal", file=sys.stderr)
         return 2

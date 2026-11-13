@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.2.0 — CT (Custom Terminal) — 2026-11-13
+
+- Added a dedicated Customize page to the full-screen terminal dashboard.
+- Added persistent dark, light and monochrome themes.
+- Added six selectable accent colors: teal, blue, green, amber, purple and red.
+- Added comfortable and compact density modes.
+- Added a large wordmark visibility toggle and a user-defined terminal-safe brand label.
+- Added local JSON preferences under `$XDG_CONFIG_HOME/forgecheck/config.json` or `~/.config/forgecheck/config.json`, saved atomically with owner-only permissions.
+- Added shell options to print the config path and reset customization.
+- Added UI customization details to exported reports without exporting private config paths.
+- Updated the dashboard navigation, keyboard help, KDE launcher, README, tests and release metadata.
+- Preserved the standard-library-only runtime and read-only local inventory scope.
+
 ## 1.1.0 — SUPER — 2026-11-13
 
 - Expanded the dashboard from four to six pages: Overview, Resources, Network, Security, System, and About.

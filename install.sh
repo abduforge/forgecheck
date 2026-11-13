@@ -39,8 +39,8 @@ fi
 cat > "$DESKTOP_FILE" <<EOF
 [Desktop Entry]
 Type=Application
-Name=ForgeCheck SUPER Console
-GenericName=Linux System Dashboard
+Name=ForgeCheck CT Console
+GenericName=Customizable Linux System Console
 Comment=Open the local read-only ForgeCheck system console
 Exec=$EXEC_LINE
 Icon=$ICON_PATH
@@ -54,9 +54,9 @@ if command -v update-desktop-database >/dev/null 2>&1; then
     update-desktop-database "$APP_DIR" >/dev/null 2>&1 || true
 fi
 
-printf '\nForgeCheck %s SUPER installed.\n' "$("$APP_BIN" --version | awk '{print $2}')"
+printf '\nForgeCheck %s CT installed.\n' "$("$APP_BIN" --version | awk '{print $2}')"
 printf 'Command: %s\n' "$APP_BIN"
-printf 'Launcher: ForgeCheck SUPER Console (KDE application menu)\n'
+printf 'Launcher: ForgeCheck CT Console (KDE application menu)\n'
 case ":$PATH:" in
     *":$BIN_DIR:"*) ;;
     *) printf '\nAdd this line to ~/.bashrc if the command is not found:\nexport PATH="%s:$PATH"\n' "$BIN_DIR" ;;

@@ -1,8 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title">
-  <title id="title">ForgeCheck</title>
-  <rect width="128" height="128" rx="24" fill="#1d2424"/>
-  <path d="M25 24h78v13H39v17h51v13H39v37H25z" fill="#e9eee9"/>
-  <path d="M89 67h14v37H89z" fill="#70c4b8"/>
-  <path d="M72 24h14v13H72z" fill="#70c4b8"/>
-  <circle cx="99" cy="24" r="7" fill="#c99a70"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">ForgeCheck CT</title>
+  <desc id="desc">A minimal ForgeCheck monogram in a customizable terminal theme.</desc>
+  <rect width="128" height="128" rx="24" fill="#171d20"/>
+  <rect x="15" y="15" width="98" height="98" rx="13" fill="none" stroke="#3b5555" stroke-width="2"/>
+  <path d="M31 29h66v12H44v15h43v12H44v31H31z" fill="#edf4f1"/>
+  <path d="M76 68h21v31H76z" fill="#70c4b8"/>
+  <circle cx="91" cy="28" r="5" fill="#d0a06d"/>
 </svg>

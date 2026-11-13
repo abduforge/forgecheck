@@ -95,30 +95,86 @@ class ForgeCheckTests(unittest.TestCase):
         data = forgecheck.collect_snapshot(sample_cpu=False)
         output = forgecheck.render_classic(data, color=False)
         self.assertIn("LOCAL-FIRST LINUX SYSTEM CONSOLE", output)
-        self.assertIn("SUPER EDITION", output)
+        self.assertIn("CT CUSTOM EDITION", output)
         self.assertIn("No network scanning", output)
 
     def test_markdown_report_includes_network_and_secure_boot(self):
         data = forgecheck.collect_snapshot(sample_cpu=False)
         output = forgecheck.render_markdown(data)
-        self.assertIn("# ForgeCheck 1.1.0 SUPER report", output)
+        self.assertIn("# ForgeCheck 1.2.0 CT report", output)
         self.assertIn("Network interfaces", output)
         self.assertIn("Secure Boot", output)
         self.assertIn("not a security audit", output)
 
     def test_snapshot_schema(self):
         data = forgecheck.collect_snapshot(sample_cpu=False)
-        self.assertEqual(data["version"], "1.1.0")
+        self.assertEqual(data["version"], "1.2.0")
         self.assertIn("network", data)
         self.assertIn("temperature_c", data)
         self.assertIn("secure_boot", data["checks"])
+
+
+    def test_customization_config_validation(self):
+        config = forgecheck.normalize_config({
+            "theme": "light",
+            "accent": "purple",
+            "density": "compact",
+            "show_logo": False,
+            "brand": "abduforge;\x1b[31mBAD",
+            "unknown": "ignored",
+        })
+        self.assertEqual(config["theme"], "light")
+        self.assertEqual(config["accent"], "purple")
+        self.assertEqual(config["density"], "compact")
+        self.assertFalse(config["show_logo"])
+        self.assertNotIn("\x1b", config["brand"])
+        self.assertNotIn(";", config["brand"])
+        self.assertNotIn("unknown", config)
+
+    def test_customization_config_save_load(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "config.json"
+            config = {**forgecheck.DEFAULT_CONFIG, "theme": "light", "accent": "amber"}
+            forgecheck.save_config(config, path)
+            loaded = forgecheck.load_config(path)
+            self.assertEqual(loaded["theme"], "light")
+            self.assertEqual(loaded["accent"], "amber")
+            self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+
+    def test_customization_config_handles_invalid_file(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "config.json"
+            path.write_text("{not json", encoding="utf-8")
+            self.assertEqual(forgecheck.load_config(path), forgecheck.DEFAULT_CONFIG)
+
+    def test_reset_config_restores_defaults(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "config.json"
+            forgecheck.save_config({**forgecheck.DEFAULT_CONFIG, "theme": "light"}, path)
+            restored = forgecheck.reset_config(path)
+            self.assertEqual(restored, forgecheck.DEFAULT_CONFIG)
+            self.assertEqual(forgecheck.load_config(path), forgecheck.DEFAULT_CONFIG)
+
+    def test_dashboard_has_customize_page(self):
+        self.assertIn("CUSTOMIZE", forgecheck.Dashboard.PAGES)
+        self.assertEqual(len(forgecheck.Dashboard.PAGES), 7)
+
+    def test_markdown_report_includes_ui_customization_when_supplied(self):
+        data = forgecheck.collect_snapshot(sample_cpu=False)
+        data["ui_customization"] = {
+            "theme": "dark", "accent": "teal", "density": "compact",
+            "brand": "ABDUFORGE", "show_logo": True,
+        }
+        output = forgecheck.render_markdown(data)
+        self.assertIn("## UI customization", output)
+        self.assertIn("- Accent: `teal`", output)
 
     def test_report_roundtrip_json(self):
         import json
         data = forgecheck.collect_snapshot(sample_cpu=False)
         restored = json.loads(json.dumps(data))
         self.assertEqual(restored["tool"], "ForgeCheck")
-        self.assertEqual(restored["version"], "1.1.0")
+        self.assertEqual(restored["version"], "1.2.0")
 
 
 if __name__ == "__main__":
