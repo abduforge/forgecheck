@@ -1,0 +1,20 @@
+[package]
+name = "forgecheck"
+version = "2.0.0"
+edition = "2021"
+rust-version = "1.85"
+description = "A fast, read-only Linux security and configuration auditor"
+license = "MIT"
+repository = "https://github.com/abduforge/forgecheck"
+readme = "README.md"
+keywords = ["linux", "security", "audit", "system", "cli"]
+categories = ["command-line-utilities", "os::linux-apis"]
+
+[dependencies]
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"

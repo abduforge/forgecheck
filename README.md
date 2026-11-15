@@ -1,185 +1,192 @@
-<div align="center">
+# ForgeCheck
 
-# FORGECHECK
+Русская версия: [README на русском](README_RU.md).
 
-**CT · Custom Terminal Edition**
+**A simple, fast, read-only security check for Linux.** Run one command, understand the findings, and decide what to fix. No cloud account, no remote scanning, and no automatic system changes.
 
-`CUSTOMIZABLE TUI` · `LINUX SYSTEM INVENTORY` · `PYTHON`
+<p align="center">
+  <a href="https://github.com/abduforge/forgecheck/releases/latest"><strong>⬇ DOWNLOAD FOR LINUX — LATEST RELEASE</strong></a>
+</p>
 
-*Make the console yours. Keep the system untouched.*
+New here? Open the download page above, choose the Linux archive for your computer, extract it, and run `./install.sh`. Then open a terminal and type `forgecheck`.
 
-**Version 1.2.0**
+```bash
+forgecheck
+```
 
-</div>
+[Quick start](#quick-start) · [Features](#what-it-checks) · [Example output](#example) · [Full documentation](#documentation) · [Security](SECURITY.md)
 
 ---
 
-ForgeCheck is a lightweight, keyboard-driven Linux terminal dashboard for viewing a local system snapshot. **CT (Custom Terminal)** adds saved interface preferences: dark, light or monochrome themes; six accent colors; compact or comfortable layout; a large wordmark toggle; and a personal brand label.
+## What is ForgeCheck?
 
-The project is designed to stay dependency-free, understandable, and usable on modest Linux hardware.
+ForgeCheck is a lightweight Linux security and configuration auditor written in Rust. It checks selected local settings, explains why a result matters, and gives a practical recommendation in plain language.
 
-![ForgeCheck CT customization screen](assets/ct-preview.svg)
+**The goal:** useful security visibility without a complicated interface.
 
-*Illustrative preview of the Customize page. Live system values are collected on the user's own machine.*
+### At a glance
 
-## CT customization
+- **One-command workflow:** run `forgecheck` to start a local review.
+- **Readable findings:** PASS, INFO, LOW, MEDIUM, HIGH, and CRITICAL labels.
+- **Useful reports:** terminal, JSON, and Markdown formats.
+- **Read-only by design:** ForgeCheck does not change settings or install packages.
+- **Local-first:** it does not upload reports or scan remote systems.
+- **Fast and lightweight:** Rust, standard library only, no third-party Rust dependencies.
 
-Open the dashboard and press `6` or `C` to open **CUSTOMIZE**. Preferences are saved automatically to `~/.config/forgecheck/config.json` (or `$XDG_CONFIG_HOME/forgecheck/config.json`) with owner-only file permissions. The file is local and is not included in exported reports.
+## Quick start
 
-| Key | Setting | Options |
-|:--|:--|:--|
-| `T` | Theme | `dark`, `light`, `mono` |
-| `A` | Accent | `teal`, `blue`, `green`, `amber`, `purple`, `red` |
-| `D` | Density | `comfortable`, `compact` |
-| `L` | Large wordmark | on / off |
-| `B` | Brand label | custom safe ASCII label, up to 28 characters |
-| `X` | Reset | restore saved defaults |
-| `S` | Save | save preferences immediately |
+### Option A — Download a ready-to-run Linux build
 
-The selected theme and accent are rendered with terminal colors when the terminal supports them. Monochrome mode respects the terminal's default colors. Compact density uses a shorter header to leave more room for the dashboard.
+1. Open **[ForgeCheck Releases](https://github.com/abduforge/forgecheck/releases/latest)**.
+2. Download the archive matching your Linux computer (`x86_64` for most Intel/AMD PCs).
+3. Extract the archive.
+4. In the extracted folder, run:
 
-### Manual configuration
+   ```bash
+   ./install.sh
+   ```
 
-Example `~/.config/forgecheck/config.json`:
+5. Open a new terminal and run:
 
-```json
-{
-  "theme": "dark",
-  "accent": "teal",
-  "density": "comfortable",
-  "show_logo": true,
-  "brand": "ABDUFORGE"
-}
-```
+   ```bash
+   forgecheck
+   ```
 
-Reset preferences from the shell:
+The installer places the program in `~/.local/bin` and does not require root privileges. If that directory is not in your `PATH`, add this line to `~/.profile` and reopen your terminal:
 
 ```bash
-forgecheck --reset-customization
+export PATH="$HOME/.local/bin:$PATH"
 ```
 
-Print the configuration path:
+### Option B — Build from source
+
+Requirements: Linux and Rust 1.85 or newer.
 
 ```bash
-forgecheck --config-path
+git clone https://github.com/abduforge/forgecheck.git
+cd forgecheck
+cargo test --all-targets
+cargo build --release
+./target/release/forgecheck
 ```
 
-## Dashboard pages
-
-1. **Overview** — system identity and compact resource summary.
-2. **Resources** — RAM, swap, root disk, CPU sample and battery.
-3. **Network** — local interface addresses and listening sockets.
-4. **Security** — local UFW, OpenSSH package and Secure Boot inventory.
-5. **System** — CPU frequency, temperature, runtime and load.
-6. **Customize** — themes, accents, density, wordmark and brand label.
-7. **About** — project scope and design principles.
-
-## Features
-
-- Original large block-letter `FORGECHECK` wordmark.
-- Persistent personal UI preferences stored locally.
-- Local snapshot of distribution, kernel, architecture, CPU, Python, RAM, swap, filesystems, uptime, load average, battery, temperature and frequency when available.
-- Local-only network inventory. It lists this machine's interface addresses and listening sockets; it does not probe remote machines.
-- Basic local inventory for UFW, the Debian `openssh-server` package and Secure Boot state when readable.
-- Timestamped JSON and Markdown report exports.
-- Python standard library only; no third-party runtime dependencies.
-
-## Requirements
-
-- Linux and Python 3.10 or newer.
-- A UTF-8 terminal for the block-letter artwork.
-- `curses` (normally included with Python on Linux distributions).
-- Optional `ip` and `ss` commands from `iproute2` for network inventory.
-- Optional `ufw`, `dpkg-query`, and UEFI efivars for their respective inventory rows.
-- Optional `konsole` for the KDE application-menu launcher.
-
-## Run from source
-
-```bash
-chmod +x forgecheck.py
-./forgecheck.py
-```
-
-Classic one-shot output:
-
-```bash
-./forgecheck.py --classic
-```
-
-JSON output:
-
-```bash
-./forgecheck.py --json
-```
-
-Write a Markdown report:
-
-```bash
-./forgecheck.py --report ~/forgecheck-report.md
-```
-
-Open the interactive dashboard explicitly:
-
-```bash
-./forgecheck.py --dashboard
-```
-
-## Dashboard keys
-
-| Key | Action |
-|:--|:--|
-| `1`–`7` | Open Overview, Resources, Network, Security, System, Customize or About |
-| `←` / `→` | Previous / next page |
-| `C` | Jump to Customize |
-| `T/A/D/L/B` | Change theme, accent, density, logo or brand on Customize page |
-| `X` | Restore default UI preferences |
-| `S` | Save UI preferences |
-| `R` | Refresh local snapshot |
-| `J` | Export JSON |
-| `M` | Export Markdown |
-| `H` or `?` | Keyboard help |
-| `Q` or `Esc` | Quit |
-
-## Install for the current user
-
-No administrator privileges are required. From the project directory:
+To install the built program into your user account:
 
 ```bash
 ./install.sh
 ```
 
-The installer places the command in `~/.local/bin/forgecheck`, installs the icon, and creates a KDE application-menu entry named **ForgeCheck CT Console**. On KDE systems with Konsole installed, that launcher opens a separate full-screen terminal window.
+## What it checks
 
-Uninstall the user-local command and launcher:
+ForgeCheck 2.0.0 currently focuses on a small set of useful local Linux checks:
+
+| Area | What ForgeCheck looks for |
+|---|---|
+| Account files | Risky permissions on `/etc/passwd` and `/etc/shadow` |
+| Privileged accounts | Unexpected additional accounts with UID 0 |
+| SSH configuration | Explicit settings for root login, empty passwords, and password authentication |
+| SSH listener | A local TCP listener on port 22, when `ss` is available |
+| Firewall | Read-only status from UFW, firewalld, nftables, or iptables when available |
+| Kernel networking | IPv4 redirect settings and IP forwarding |
+| System directories | World-writable `/etc` or `/etc/ssh` directories |
+
+ForgeCheck reports what it can actually observe. Missing tools or inaccessible settings are marked as unavailable or informational; they are not silently treated as secure.
+
+## Commands
+
+| Command | What it does |
+|---|---|
+| `forgecheck` | Run the default local review |
+| `forgecheck scan` | Same as the default review |
+| `forgecheck scan --json` | Print a JSON report |
+| `forgecheck scan --markdown` | Print a Markdown report |
+| `forgecheck scan -o report.md --markdown` | Save a Markdown report |
+| `forgecheck checks` | List the checks included in this version |
+| `forgecheck doctor` | Check Linux files and optional local tools |
+| `forgecheck --version` | Print the installed version |
+| `forgecheck --help` | Show help |
+
+### Save a report
+
+Markdown:
 
 ```bash
-./uninstall.sh
+forgecheck scan --markdown --output forgecheck-report.md
 ```
 
-Your customization file and exported reports are kept when uninstalling.
-
-## Safety, scope and privacy
-
-ForgeCheck is a **read-only local inventory**, not a vulnerability scanner or penetration-testing framework. Network information is limited to local interface addresses and local listening sockets. It does not probe remote machines, send network scans, exploit services, start or stop services, change firewall rules, or modify system configuration. It does not claim that a machine is secure.
-
-Run it as a regular user. Some optional checks may say that status is unavailable when elevated permission would be required. That is intentional: ForgeCheck does not request `sudo` or prompt for a password.
-
-JSON and Markdown reports can contain private LAN IP addresses and listening-port details. Review reports before sharing. UI preferences are stored locally and are not uploaded by ForgeCheck.
-
-## Development and tests
+JSON:
 
 ```bash
-python3 -m py_compile forgecheck.py
-python3 -m unittest discover -s tests -v
+forgecheck scan --json --output forgecheck-report.json
 ```
 
-The test suite uses only the Python standard library.
+Reports do not include the computer's hostname, the current username, IP addresses, or account names for additional UID 0 entries. Review any report before sharing it anyway.
 
-## Project
+## Example
 
-- Version: `1.2.0`
-- Codename: `CT` (Custom Terminal)
-- License: MIT
-- Author: Abduali / AbduForge
+A result looks like this:
 
-*Every system tells a story. Learn to read it.*
+```text
+ForgeCheck 2.0.0 GLOBAL
+Local Linux security overview · read-only · no network scanning
+
+OS: Debian GNU/Linux
+Kernel: 6.x
+Architecture: x86_64
+
+Summary: 11 checks | 7 pass | 2 info | 1 medium | 1 high | 0 critical
+
+[PASS] PASSWD_FILE_PERMISSIONS — /etc/passwd is not group- or world-writable
+[MEDIUM] FIREWALL_STATUS — No active supported firewall could be confirmed
+  Recommendation: Check your firewall using the tool that manages it...
+```
+
+The numbers above are illustrative, not a real scan result.
+
+## How ForgeCheck works
+
+1. It reads selected local Linux configuration files and kernel settings.
+2. It may run a few fixed, read-only status commands if the relevant utility is installed.
+3. It converts observations into findings with a severity, explanation, and recommendation.
+4. It displays the report locally or writes it to a file you choose.
+
+ForgeCheck does not need `sudo` for its normal scan. Some checks may be unavailable to an unprivileged user. Do not run it as root just to make every check appear complete.
+
+## What ForgeCheck is not
+
+- It is **not** a penetration-testing framework.
+- It does **not** exploit vulnerabilities or attempt to gain access.
+- It does **not** scan public IP addresses, other devices, or networks.
+- It is **not** an antivirus or malware-removal tool.
+- It does **not** automatically edit firewall, SSH, kernel, or account settings.
+- A PASS result is not a guarantee that a system is secure.
+
+## Supported systems
+
+ForgeCheck is Linux-first and is intended for modern Linux distributions, including MX Linux, Debian, Ubuntu, Fedora, and Arch-based systems. Some checks depend on distribution tools and configuration paths, so results can differ between distributions.
+
+## Project status
+
+**Version:** 2.0.0 GLOBAL  
+**Language:** Rust  
+**License:** MIT  
+**Maintainer:** [AbduForge](https://github.com/abduforge)
+
+ForgeCheck 2.0.0 is an initial global redesign. It is useful for local configuration review, but it has not undergone an independent security audit. See [SECURITY.md](SECURITY.md).
+
+## Documentation
+
+- [Checks explained](docs/CHECKS.md)
+- [Privacy and data handling](docs/PRIVACY.md)
+- [Security policy](SECURITY.md)
+- [Changelog](CHANGELOG.md)
+- [Release notes](RELEASE_NOTES.md)
+- [Project plan](PROJECT_PLAN.md)
+
+## Contributing
+
+Bug reports, documentation improvements, and defensive Linux-check ideas are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
+
+---
+
+**ForgeCheck — powerful checks, straightforward results.**

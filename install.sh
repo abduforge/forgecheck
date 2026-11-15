@@ -2,62 +2,30 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-BIN_DIR="$HOME/.local/bin"
-APP_DIR="$HOME/.local/share/applications"
-ICON_DIR="$HOME/.local/share/icons/hicolor/scalable/apps"
-APP_BIN="$BIN_DIR/forgecheck"
-ICON_PATH="$ICON_DIR/forgecheck.svg"
-DESKTOP_FILE="$APP_DIR/forgecheck.desktop"
+DEST_DIR="${HOME}/.local/bin"
+SOURCE_BIN=""
 
-if ! command -v python3 >/dev/null 2>&1; then
-    printf 'ForgeCheck requires Python 3.10 or newer.\n' >&2
+if [[ -x "${ROOT_DIR}/forgecheck" ]]; then
+  SOURCE_BIN="${ROOT_DIR}/forgecheck"
+elif [[ -x "${ROOT_DIR}/bin/forgecheck" ]]; then
+  SOURCE_BIN="${ROOT_DIR}/bin/forgecheck"
+elif [[ -f "${ROOT_DIR}/Cargo.toml" ]]; then
+  if ! command -v cargo >/dev/null 2>&1; then
+    echo "Cargo is required to build from source. Install Rust from https://rustup.rs/" >&2
     exit 1
-fi
-PY_VERSION="$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
-if ! python3 -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)'; then
-    printf 'Found Python %s; Python 3.10+ is required.\n' "$PY_VERSION" >&2
-    exit 1
-fi
-
-mkdir -p "$BIN_DIR" "$APP_DIR" "$ICON_DIR"
-install -m 755 "$ROOT_DIR/forgecheck.py" "$APP_BIN"
-install -m 644 "$ROOT_DIR/assets/forgecheck.svg" "$ICON_PATH"
-
-if command -v konsole >/dev/null 2>&1; then
-    TERMINAL="$(command -v konsole)"
-    EXEC_LINE="$TERMINAL --fullscreen -e \"$APP_BIN\""
-elif command -v x-terminal-emulator >/dev/null 2>&1; then
-    TERMINAL="$(command -v x-terminal-emulator)"
-    EXEC_LINE="$TERMINAL -e \"$APP_BIN\""
-elif command -v xterm >/dev/null 2>&1; then
-    TERMINAL="$(command -v xterm)"
-    EXEC_LINE="$TERMINAL -e \"$APP_BIN\""
+  fi
+  echo "Building ForgeCheck in release mode..."
+  (cd "${ROOT_DIR}" && cargo build --locked --release)
+  SOURCE_BIN="${ROOT_DIR}/target/release/forgecheck"
 else
-    EXEC_LINE="$APP_BIN"
+  echo "Could not find a ForgeCheck binary or Cargo.toml in ${ROOT_DIR}" >&2
+  exit 1
 fi
 
-cat > "$DESKTOP_FILE" <<EOF
-[Desktop Entry]
-Type=Application
-Name=ForgeCheck CT Console
-GenericName=Customizable Linux System Console
-Comment=Open the local read-only ForgeCheck system console
-Exec=$EXEC_LINE
-Icon=$ICON_PATH
-Terminal=false
-Categories=System;Utility;Monitor;
-StartupNotify=false
-EOF
-chmod 644 "$DESKTOP_FILE"
-
-if command -v update-desktop-database >/dev/null 2>&1; then
-    update-desktop-database "$APP_DIR" >/dev/null 2>&1 || true
-fi
-
-printf '\nForgeCheck %s CT installed.\n' "$("$APP_BIN" --version | awk '{print $2}')"
-printf 'Command: %s\n' "$APP_BIN"
-printf 'Launcher: ForgeCheck CT Console (KDE application menu)\n'
-case ":$PATH:" in
-    *":$BIN_DIR:"*) ;;
-    *) printf '\nAdd this line to ~/.bashrc if the command is not found:\nexport PATH="%s:$PATH"\n' "$BIN_DIR" ;;
+install -d "${DEST_DIR}"
+install -m 0755 "${SOURCE_BIN}" "${DEST_DIR}/forgecheck"
+echo "ForgeCheck installed to ${DEST_DIR}/forgecheck"
+case ":${PATH}:" in
+  *":${DEST_DIR}:"*) echo "Run: forgecheck" ;;
+  *) echo "Add this to ~/.profile if forgecheck is not found:"; echo "  export PATH=\"\$HOME/.local/bin:\$PATH\"" ;;
 esac
